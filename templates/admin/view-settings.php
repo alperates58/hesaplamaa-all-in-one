@@ -15,6 +15,11 @@ if ( isset( $_GET['hao_gsc_callback'] ) && ! empty( $_GET['code'] ) ) {
         echo '<div class="notice notice-success" style="margin-bottom:20px;"><p>Google Search Console başarıyla bağlandı!</p></div>';
     }
 }
+
+$gh_updater  = new \HAO\Core\GithubUpdater();
+$gh_settings = $gh_updater->get_settings();
+$local_sha   = substr( (string) get_option( 'hao_last_update_sha', '' ), 0, 7 );
+$last_update = get_option( 'hao_last_update_time', '' );
 ?>
 
 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:24px;">
@@ -147,7 +152,61 @@ if ( isset( $_GET['hao_gsc_callback'] ) && ! empty( $_GET['code'] ) ) {
         </form>
     </div>
 
-    <!-- 3. Google Ads API Ayarları -->
+    <!-- 3. GitHub Güncelleme Merkezi -->
+    <div class="hao-card">
+        <div class="hao-card-header">
+            <h2 class="hao-card-title">
+                <span class="dashicons dashicons-update" style="color:#0f172a;"></span>
+                GitHub Güncelleme Merkezi
+            </h2>
+            <span class="hao-badge hao-badge-slate">
+                SHA: <?php echo esc_html( $local_sha ?: 'v1.0.0' ); ?>
+            </span>
+        </div>
+
+        <div style="margin-bottom:16px;">
+            <p style="font-size:13px; color:#475569; margin:0 0 12px 0;">
+                Eklentiyi GitHub üzerindeki en son koda tek tıkla güncelleyin.
+            </p>
+            <div id="hao-github-status" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:14px; font-size:12.5px;">
+                <div><strong>Depo (Repository):</strong> <code><?php echo esc_html( $gh_settings['repo'] ); ?></code></div>
+                <div><strong>Dal (Branch):</strong> <code><?php echo esc_html( $gh_settings['branch'] ); ?></code></div>
+                <?php if ( $last_update ) : ?>
+                    <div style="color:#64748b; font-size:11.5px; margin-top:4px;">Son Güncelleme: <?php echo esc_html( gmdate( 'd.m.Y H:i', strtotime( $last_update ) ) ); ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+            <button type="button" id="hao-btn-github-check" class="hao-btn hao-btn-secondary">
+                <span class="dashicons dashicons-search"></span> Güncellemeleri Denetle
+            </button>
+            <button type="button" id="hao-btn-github-update" class="hao-btn hao-btn-primary">
+                <span class="dashicons dashicons-download"></span> GitHub'dan Şimdi Güncelle
+            </button>
+        </div>
+
+        <details style="border-top:1px solid #e2e8f0; padding-top:12px; font-size:12px; color:#64748b;">
+            <summary style="cursor:pointer; font-weight:600; color:#475569;">Gelişmiş GitHub Ayarları (Token / Repo Değiştir)</summary>
+            <form id="hao-form-github-settings" style="margin-top:12px;">
+                <div style="margin-bottom:10px;">
+                    <label style="display:block; font-size:11px; font-weight:600; margin-bottom:2px;">Repo Adı</label>
+                    <input type="text" name="repo" class="widefat" value="<?php echo esc_attr( $gh_settings['repo'] ); ?>" style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label style="display:block; font-size:11px; font-weight:600; margin-bottom:2px;">Branch</label>
+                    <input type="text" name="branch" class="widefat" value="<?php echo esc_attr( $gh_settings['branch'] ); ?>" style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; font-size:11px; font-weight:600; margin-bottom:2px;">GitHub Personal Access Token (Opsiyonel)</label>
+                    <input type="password" name="token" class="widefat" value="<?php echo esc_attr( $gh_settings['token'] ); ?>" placeholder="ghp_..." style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <button type="submit" class="hao-btn hao-btn-secondary hao-btn-sm">Kaydet</button>
+            </form>
+        </details>
+    </div>
+
+    <!-- 4. Google Ads API Ayarları -->
     <div class="hao-card">
         <div class="hao-card-header">
             <h2 class="hao-card-title">
@@ -184,7 +243,7 @@ if ( isset( $_GET['hao_gsc_callback'] ) && ! empty( $_GET['code'] ) ) {
         </form>
     </div>
 
-    <!-- 4. Sistem ve Cron Durumu -->
+    <!-- 5. Sistem ve Cron Durumu -->
     <div class="hao-card">
         <div class="hao-card-header">
             <h2 class="hao-card-title">

@@ -4,7 +4,7 @@ namespace HAO\API;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Merkezi Çoklu AI Köprüsü (OpenAI / DeepSeek / Gemini)
+ * Merkezi Çoklu AI Köprüsü (DeepSeek V4 Flash / OpenAI / Gemini)
  */
 class AiHub {
 
@@ -14,11 +14,11 @@ class AiHub {
 
     public function __construct() {
         $defaults = [
-            'provider'       => 'openai',
+            'provider'       => 'deepseek',
+            'deepseek_key'   => '',
+            'deepseek_model' => 'deepseek-v4-flash',
             'openai_key'     => '',
             'openai_model'   => 'gpt-4o-mini',
-            'deepseek_key'   => '',
-            'deepseek_model' => 'deepseek-chat',
             'gemini_key'     => '',
             'gemini_model'   => 'gemini-2.0-flash',
             'temperature'    => 0.7,
@@ -27,6 +27,13 @@ class AiHub {
         $saved = get_option( self::OPTION_KEY, [] );
         
         // Geriye dönük uyumluluk: HGE veya AI-SEO ayarlarından otomatik anahtar transferi
+        if ( empty( $saved['deepseek_key'] ) ) {
+            $saved_ds = get_option( 'hc_deepseek_api_key', '' ) ?: get_option( 'deepseek_api_key', '' );
+            if ( $saved_ds ) {
+                $saved['deepseek_key'] = $saved_ds;
+            }
+        }
+
         if ( empty( $saved['openai_key'] ) ) {
             $hge_ai = get_option( 'hge_ai_settings', [] );
             if ( ! empty( $hge_ai['api_key'] ) ) {
@@ -48,11 +55,11 @@ class AiHub {
 
     public function save_settings( array $data ): bool {
         $clean = [
-            'provider'       => sanitize_key( $data['provider'] ?? 'openai' ),
+            'provider'       => sanitize_key( $data['provider'] ?? 'deepseek' ),
+            'deepseek_key'   => sanitize_text_field( $data['deepseek_key'] ?? '' ),
+            'deepseek_model' => sanitize_text_field( $data['deepseek_model'] ?? 'deepseek-v4-flash' ),
             'openai_key'     => sanitize_text_field( $data['openai_key'] ?? '' ),
             'openai_model'   => sanitize_text_field( $data['openai_model'] ?? 'gpt-4o-mini' ),
-            'deepseek_key'   => sanitize_text_field( $data['deepseek_key'] ?? '' ),
-            'deepseek_model' => sanitize_text_field( $data['deepseek_model'] ?? 'deepseek-chat' ),
             'gemini_key'     => sanitize_text_field( $data['gemini_key'] ?? '' ),
             'gemini_model'   => sanitize_text_field( $data['gemini_model'] ?? 'gemini-2.0-flash' ),
             'temperature'    => max( 0.1, min( 1.0, (float) ( $data['temperature'] ?? 0.7 ) ) ),
@@ -86,6 +93,55 @@ class AiHub {
         } else {
             return $this->call_openai( $system_prompt, $user_prompt, $json_mode );
         }
+    }
+
+    /**
+     * DeepSeek API Çağrısı (Varsayılan: DeepSeek V4 Flash)
+     */
+    private function call_deepseek( string $system, string $user, bool $json_mode = false ) {
+        $key   = $this->settings['deepseek_key'];
+        $model = $this->settings['deepseek_model'] ?: 'deepseek-v4-flash';
+
+        if ( empty( $key ) ) {
+            return new \WP_Error( 'ai_no_key', 'DeepSeek API Anahtarı eksik. Lütfen ayarlardan girin.' );
+        }
+
+        $body = [
+            'model'       => $model,
+            'messages'    => [
+                [ 'role' => 'system', 'content' => $system ],
+                [ 'role' => 'user',   'content' => $user ],
+            ],
+            'temperature' => (float) $this->settings['temperature'],
+        ];
+
+        if ( $json_mode ) {
+            $body['response_format'] = [ 'type' => 'json_object' ];
+        }
+
+        $response = wp_remote_post(
+            'https://api.deepseek.com/v1/chat/completions',
+            [
+                'timeout' => 45,
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $key,
+                    'Content-Type'  => 'application/json',
+                ],
+                'body'    => wp_json_encode( $body ),
+            ]
+        );
+
+        if ( is_wp_error( $response ) ) {
+            return $response;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( ! empty( $data['error'] ) ) {
+            return new \WP_Error( 'deepseek_error', $data['error']['message'] ?? 'DeepSeek Hatası' );
+        }
+
+        $content = $data['choices'][0]['message']['content'] ?? '';
+        return $json_mode ? json_decode( $content, true ) : $content;
     }
 
     /**
@@ -131,55 +187,6 @@ class AiHub {
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( ! empty( $data['error'] ) ) {
             return new \WP_Error( 'openai_error', $data['error']['message'] ?? 'OpenAI Hatası' );
-        }
-
-        $content = $data['choices'][0]['message']['content'] ?? '';
-        return $json_mode ? json_decode( $content, true ) : $content;
-    }
-
-    /**
-     * DeepSeek API Çağrısı
-     */
-    private function call_deepseek( string $system, string $user, bool $json_mode = false ) {
-        $key   = $this->settings['deepseek_key'];
-        $model = $this->settings['deepseek_model'] ?: 'deepseek-chat';
-
-        if ( empty( $key ) ) {
-            return new \WP_Error( 'ai_no_key', 'DeepSeek API Anahtarı eksik.' );
-        }
-
-        $body = [
-            'model'       => $model,
-            'messages'    => [
-                [ 'role' => 'system', 'content' => $system ],
-                [ 'role' => 'user',   'content' => $user ],
-            ],
-            'temperature' => (float) $this->settings['temperature'],
-        ];
-
-        if ( $json_mode ) {
-            $body['response_format'] = [ 'type' => 'json_object' ];
-        }
-
-        $response = wp_remote_post(
-            'https://api.deepseek.com/v1/chat/completions',
-            [
-                'timeout' => 45,
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $key,
-                    'Content-Type'  => 'application/json',
-                ],
-                'body'    => wp_json_encode( $body ),
-            ]
-        );
-
-        if ( is_wp_error( $response ) ) {
-            return $response;
-        }
-
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( ! empty( $data['error'] ) ) {
-            return new \WP_Error( 'deepseek_error', $data['error']['message'] ?? 'DeepSeek Hatası' );
         }
 
         $content = $data['choices'][0]['message']['content'] ?? '';

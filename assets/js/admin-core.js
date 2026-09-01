@@ -279,6 +279,14 @@
                 });
             });
 
+            $('#hao-form-github-settings').on('submit', function(e) {
+                e.preventDefault();
+                const data = $(this).serialize() + '&action=hao_save_github_settings&nonce=' + hao_vars.nonce;
+                $.post(hao_vars.ajax_url, data, function(res) {
+                    self.showToast(res.data.message || 'GitHub ayarları kaydedildi!');
+                });
+            });
+
             // AI Test Bağlantısı
             $('#hao-btn-test-ai').on('click', function(e) {
                 e.preventDefault();
@@ -294,6 +302,59 @@
                     } else {
                         self.showToast(res.data.message || 'AI Test Hatası!', true);
                     }
+                });
+            });
+
+            // 7. GitHub Güncellemeleri Denetle
+            $('#hao-btn-github-check').on('click', function(e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const orig = $btn.html();
+                $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Denetleniyor...');
+
+                $.post(hao_vars.ajax_url, {
+                    action: 'hao_github_check',
+                    nonce: hao_vars.nonce
+                }, function(res) {
+                    $btn.prop('disabled', false).html(orig);
+                    if (res.success) {
+                        if (res.data.is_latest) {
+                            self.showToast('Tebrikler, en son sürüme (' + res.data.remote_sha + ') sahipsiniz!');
+                        } else {
+                            self.showToast('Yeni sürüm bulundu (' + res.data.remote_sha + ')! Son Commit: ' + res.data.message);
+                        }
+                    } else {
+                        self.showToast(res.data.message || 'GitHub kontrol hatası!', true);
+                    }
+                });
+            });
+
+            // 8. GitHub'dan Şimdi Güncelle (One-Click Update)
+            $('#hao-btn-github-update').on('click', function(e) {
+                e.preventDefault();
+                if (!confirm('Eklenti GitHub üzerindeki en son sürüme güncellenecek. Devam etmek istiyor musunuz?')) {
+                    return;
+                }
+
+                const $btn = $(this);
+                const orig = $btn.html();
+                $btn.prop('disabled', true).html('<span class="dashicons dashicons-download spin"></span> GitHub\'dan İndiriliyor & Güncelleniyor...');
+
+                $.post(hao_vars.ajax_url, {
+                    action: 'hao_github_update',
+                    nonce: hao_vars.nonce
+                }, function(res) {
+                    if (res.success) {
+                        $btn.html('Güncellendi ✓');
+                        self.showToast(res.data.message || 'Güncelleme başarıyla tamamlandı!');
+                        setTimeout(function() { location.reload(); }, 1500);
+                    } else {
+                        $btn.prop('disabled', false).html(orig);
+                        self.showToast(res.data.message || 'Güncelleme sırasında hata oluştu!', true);
+                    }
+                }).fail(function() {
+                    $btn.prop('disabled', false).html(orig);
+                    self.showToast('Sunucu bağlantı hatası!', true);
                 });
             });
         },

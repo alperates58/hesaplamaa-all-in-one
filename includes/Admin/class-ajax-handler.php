@@ -22,6 +22,9 @@ class AjaxHandler {
             'hao_save_ai_settings'     => [ $this, 'ajax_save_ai_settings' ],
             'hao_save_ads_settings'    => [ $this, 'ajax_save_ads_settings' ],
             'hao_test_ai'              => [ $this, 'ajax_test_ai' ],
+            'hao_github_check'         => [ $this, 'ajax_github_check' ],
+            'hao_github_update'        => [ $this, 'ajax_github_update' ],
+            'hao_save_github_settings' => [ $this, 'ajax_save_github_settings' ],
         ];
 
         foreach ( $actions as $action => $cb ) {
@@ -198,5 +201,49 @@ class AjaxHandler {
         }
 
         wp_send_json_success( [ 'response' => $res ] );
+    }
+
+    public function ajax_github_check() {
+        $this->verify_request();
+        $updater = new \HAO\Core\GithubUpdater();
+        $commit  = $updater->get_remote_commit();
+
+        if ( is_wp_error( $commit ) ) {
+            wp_send_json_error( [ 'message' => $commit->get_error_message() ] );
+        }
+
+        $local_sha = substr( (string) get_option( 'hao_last_update_sha', '' ), 0, 7 );
+        $is_latest = ( ! empty( $local_sha ) && $local_sha === $commit['sha'] );
+
+        wp_send_json_success( [
+            'remote_sha' => $commit['sha'],
+            'local_sha'  => $local_sha ?: 'v1.0.0',
+            'is_latest'  => $is_latest,
+            'message'    => $commit['message'],
+            'date'       => $commit['date'] ? gmdate( 'd.m.Y H:i', strtotime( $commit['date'] ) ) : '',
+        ] );
+    }
+
+    public function ajax_github_update() {
+        $this->verify_request();
+        $updater = new \HAO\Core\GithubUpdater();
+        $result  = $updater->perform_update();
+
+        if ( ! empty( $result['success'] ) ) {
+            wp_send_json_success( $result );
+        } else {
+            wp_send_json_error( $result );
+        }
+    }
+
+    public function ajax_save_github_settings() {
+        $this->verify_request();
+        $updater = new \HAO\Core\GithubUpdater();
+        $saved   = $updater->save_settings( $_POST );
+        if ( $saved ) {
+            wp_send_json_success( [ 'message' => 'GitHub ayarları kaydedildi.' ] );
+        } else {
+            wp_send_json_error( [ 'message' => 'Ayarlar kaydedilemedi.' ] );
+        }
     }
 }
