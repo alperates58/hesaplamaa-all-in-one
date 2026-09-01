@@ -13,14 +13,16 @@ class GoogleAdsClient {
     private string $client_secret;
     private string $refresh_token;
     private string $customer_id;
+    private string $login_customer_id;
 
     public function __construct() {
         $settings              = get_option( 'hge_settings', [] );
-        $this->developer_token = (string) ( $settings['google_ads_dev_token'] ?? '' );
-        $this->client_id       = (string) ( $settings['google_ads_client_id'] ?? '' );
-        $this->client_secret   = (string) ( $settings['google_ads_client_secret'] ?? '' );
+        $this->developer_token = (string) ( $settings['google_ads_developer_token'] ?? ( $settings['google_ads_dev_token'] ?? '' ) );
+        $this->client_id       = (string) ( $settings['google_ads_client_id'] ?? ( $settings['gsc_client_id'] ?? '' ) );
+        $this->client_secret   = (string) ( $settings['google_ads_client_secret'] ?? ( $settings['gsc_client_secret'] ?? '' ) );
         $this->refresh_token   = (string) ( $settings['google_ads_refresh_token'] ?? '' );
         $this->customer_id     = preg_replace( '/[^0-9]/', '', (string) ( $settings['google_ads_customer_id'] ?? '' ) );
+        $this->login_customer_id = preg_replace( '/[^0-9]/', '', (string) ( $settings['google_ads_login_customer_id'] ?? '' ) );
     }
 
     public function is_configured(): bool {
@@ -91,15 +93,21 @@ class GoogleAdsClient {
             'language'            => 'languageConstants/1037', // Türkçe (1037)
         ];
 
+        $headers = [
+            'Authorization'     => 'Bearer ' . $token,
+            'developer-token'   => $this->developer_token,
+            'Content-Type'      => 'application/json',
+        ];
+
+        if ( ! empty( $this->login_customer_id ) && $this->login_customer_id !== $this->customer_id ) {
+            $headers['login-customer-id'] = $this->login_customer_id;
+        }
+
         $response = wp_remote_post(
             $url,
             [
                 'timeout' => 60,
-                'headers' => [
-                    'Authorization'     => 'Bearer ' . $token,
-                    'developer-token'   => $this->developer_token,
-                    'Content-Type'      => 'application/json',
-                ],
+                'headers' => $headers,
                 'body'    => wp_json_encode( $body ),
             ]
         );
@@ -109,21 +117,22 @@ class GoogleAdsClient {
         }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
-        $results = [];
+        $metrics = [];
 
-        if ( ! empty( $data['results'] ) ) {
-            foreach ( $data['results'] as $row ) {
-                $kw = $row['text'] ?? '';
+        if ( ! empty( $data['results'] ) && is_array( $data['results'] ) ) {
+            foreach ( $data['results'] as $r ) {
+                $kw  = $r['text'] ?? '';
+                $vol = (int) ( $r['keywordMetrics']['avgMonthlySearches'] ?? 0 );
+                $cpc = (float) ( ( $r['keywordMetrics']['highTopOfPageBidMicros'] ?? 0 ) / 1000000 );
                 if ( $kw ) {
-                    $metrics = $row['keywordMetrics'] ?? [];
-                    $results[ $kw ] = [
-                        'monthly_volume' => (int) ( $metrics['avgMonthlySearches'] ?? 0 ),
-                        'competition'    => $metrics['competition'] ?? 'UNKNOWN',
+                    $metrics[ $kw ] = [
+                        'volume' => $vol,
+                        'cpc'    => $cpc,
                     ];
                 }
             }
         }
 
-        return $results;
+        return $metrics;
     }
 }

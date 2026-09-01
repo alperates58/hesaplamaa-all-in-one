@@ -24,6 +24,14 @@ $gh_updater  = new \HAO\Core\GithubUpdater();
 $gh_settings = $gh_updater->get_settings();
 $local_sha   = substr( (string) get_option( 'hao_last_update_sha', '' ), 0, 7 );
 $last_update = get_option( 'hao_last_update_time', '' );
+
+// HGE Uyumlu Değerler (Otomatik Aktarım ve Miras Alma)
+$gsc_settings      = get_option( 'hge_settings', [] );
+$ads_dev_token     = $gsc_settings['google_ads_developer_token'] ?? ( $gsc_settings['google_ads_dev_token'] ?? '' );
+$ads_customer_id   = $gsc_settings['google_ads_customer_id'] ?? '7679956929';
+$ads_client_id     = ! empty( $gsc_settings['google_ads_client_id'] ) ? $gsc_settings['google_ads_client_id'] : ( $gsc_settings['gsc_client_id'] ?? '' );
+$ads_client_secret = ! empty( $gsc_settings['google_ads_client_secret'] ) ? $gsc_settings['google_ads_client_secret'] : ( $gsc_settings['gsc_client_secret'] ?? '' );
+$ads_refresh_token = $gsc_settings['google_ads_refresh_token'] ?? '';
 ?>
 
 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:24px;">
@@ -232,23 +240,25 @@ $last_update = get_option( 'hao_last_update_time', '' );
         <form id="hao-form-ads-settings">
             <div style="margin-bottom:14px;">
                 <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Developer Token</label>
-                <input type="password" name="ads_dev_token" class="widefat" value="<?php echo esc_attr( $gsc_settings['google_ads_dev_token'] ?? '' ); ?>" style="border-radius:6px; padding:8px 10px;">
+                <input type="password" name="ads_dev_token" class="widefat" value="<?php echo esc_attr( $ads_dev_token ); ?>" placeholder="HGE'de tanımlı Developer Token" style="border-radius:6px; padding:8px 10px;">
+                <small style="color:#64748b; font-size:11px;">Google Ads API Developer Token</small>
             </div>
 
             <div style="margin-bottom:14px;">
                 <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Customer ID (Hesap No)</label>
-                <input type="text" name="ads_customer_id" class="widefat" value="<?php echo esc_attr( $gsc_settings['google_ads_customer_id'] ?? '' ); ?>" placeholder="123-456-7890" style="border-radius:6px; padding:8px 10px;">
+                <input type="text" name="ads_customer_id" class="widefat" value="<?php echo esc_attr( $ads_customer_id ); ?>" placeholder="7679956929" style="border-radius:6px; padding:8px 10px;">
             </div>
 
             <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">OAuth Client ID & Secret</label>
-                <input type="text" name="ads_client_id" class="widefat" value="<?php echo esc_attr( $gsc_settings['google_ads_client_id'] ?? '' ); ?>" placeholder="Client ID" style="border-radius:6px; padding:8px 10px; margin-bottom:6px;">
-                <input type="password" name="ads_client_secret" class="widefat" value="<?php echo esc_attr( $gsc_settings['google_ads_client_secret'] ?? '' ); ?>" placeholder="Client Secret" style="border-radius:6px; padding:8px 10px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">OAuth Client ID & Secret (GSC ile Ortak)</label>
+                <input type="text" name="ads_client_id" class="widefat" value="<?php echo esc_attr( $ads_client_id ); ?>" placeholder="OAuth Client ID" style="border-radius:6px; padding:8px 10px; margin-bottom:6px;">
+                <input type="password" name="ads_client_secret" class="widefat" value="<?php echo esc_attr( $ads_client_secret ); ?>" placeholder="OAuth Client Secret" style="border-radius:6px; padding:8px 10px;">
+                <small style="color:#64748b; font-size:11px;">GSC Client ID & Secret bilgileri otomatik miras alınır.</small>
             </div>
 
             <div style="margin-bottom:18px;">
                 <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Refresh Token</label>
-                <input type="password" name="ads_refresh_token" class="widefat" value="<?php echo esc_attr( $gsc_settings['google_ads_refresh_token'] ?? '' ); ?>" style="border-radius:6px; padding:8px 10px;">
+                <input type="password" name="ads_refresh_token" class="widefat" value="<?php echo esc_attr( $ads_refresh_token ); ?>" placeholder="••••••••" style="border-radius:6px; padding:8px 10px;">
             </div>
 
             <div>

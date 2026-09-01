@@ -182,11 +182,14 @@ class AjaxHandler {
     public function ajax_save_ads_settings() {
         $this->verify_request();
         $settings = get_option( 'hge_settings', [] );
-        $settings['google_ads_dev_token']     = sanitize_text_field( $_POST['ads_dev_token'] ?? '' );
-        $settings['google_ads_client_id']     = sanitize_text_field( $_POST['ads_client_id'] ?? '' );
-        $settings['google_ads_client_secret'] = sanitize_text_field( $_POST['ads_client_secret'] ?? '' );
-        $settings['google_ads_refresh_token'] = sanitize_text_field( $_POST['ads_refresh_token'] ?? '' );
-        $settings['google_ads_customer_id']   = sanitize_text_field( $_POST['ads_customer_id'] ?? '' );
+        $dev_token = sanitize_text_field( $_POST['ads_dev_token'] ?? '' );
+        $settings['google_ads_developer_token'] = $dev_token;
+        $settings['google_ads_dev_token']       = $dev_token;
+        $settings['google_ads_client_id']       = sanitize_text_field( $_POST['ads_client_id'] ?? '' );
+        $settings['google_ads_client_secret']   = sanitize_text_field( $_POST['ads_client_secret'] ?? '' );
+        $settings['google_ads_refresh_token']   = sanitize_text_field( $_POST['ads_refresh_token'] ?? '' );
+        $settings['google_ads_customer_id']     = sanitize_text_field( $_POST['ads_customer_id'] ?? '' );
+        $settings['google_ads_enabled']         = true;
         update_option( 'hge_settings', $settings );
         wp_send_json_success( [ 'message' => 'Google Ads ayarları kaydedildi.' ] );
     }
