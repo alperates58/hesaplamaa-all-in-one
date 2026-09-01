@@ -20,7 +20,7 @@ class AiHub {
             'deepseek_key'   => '',
             'deepseek_model' => 'deepseek-chat',
             'gemini_key'     => '',
-            'gemini_model'   => 'gemini-1.5-flash',
+            'gemini_model'   => 'gemini-2.0-flash',
             'temperature'    => 0.7,
         ];
 
@@ -54,7 +54,7 @@ class AiHub {
             'deepseek_key'   => sanitize_text_field( $data['deepseek_key'] ?? '' ),
             'deepseek_model' => sanitize_text_field( $data['deepseek_model'] ?? 'deepseek-chat' ),
             'gemini_key'     => sanitize_text_field( $data['gemini_key'] ?? '' ),
-            'gemini_model'   => sanitize_text_field( $data['gemini_model'] ?? 'gemini-1.5-flash' ),
+            'gemini_model'   => sanitize_text_field( $data['gemini_model'] ?? 'gemini-2.0-flash' ),
             'temperature'    => max( 0.1, min( 1.0, (float) ( $data['temperature'] ?? 0.7 ) ) ),
         ];
 
@@ -191,7 +191,7 @@ class AiHub {
      */
     private function call_gemini( string $system, string $user, bool $json_mode = false ) {
         $key   = $this->settings['gemini_key'];
-        $model = $this->settings['gemini_model'] ?: 'gemini-1.5-flash';
+        $model = $this->settings['gemini_model'] ?: 'gemini-2.0-flash';
 
         if ( empty( $key ) ) {
             return new \WP_Error( 'ai_no_key', 'Google Gemini API Anahtarı eksik.' );

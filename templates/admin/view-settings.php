@@ -71,28 +71,71 @@ if ( isset( $_GET['hao_gsc_callback'] ) && ! empty( $_GET['code'] ) ) {
         </div>
 
         <form id="hao-form-ai-settings">
-            <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Varsayılan AI Sağlayıcı</label>
-                <select name="provider" style="width:100%; border-radius:6px; padding:8px 10px; border:1px solid #cbd5e1;">
-                    <option value="openai" <?php selected( $ai_settings['provider'], 'openai' ); ?>>OpenAI (GPT-4o mini / GPT-4o)</option>
-                    <option value="deepseek" <?php selected( $ai_settings['provider'], 'deepseek' ); ?>>DeepSeek (deepseek-chat)</option>
-                    <option value="gemini" <?php selected( $ai_settings['provider'], 'gemini' ); ?>>Google Gemini (gemini-1.5-flash / 2.0)</option>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Aktif / Varsayılan AI Sağlayıcı</label>
+                <select name="provider" style="width:100%; border-radius:6px; padding:8px 10px; border:1px solid #cbd5e1; font-weight:600;">
+                    <option value="openai" <?php selected( $ai_settings['provider'], 'openai' ); ?>>OpenAI (GPT-4o mini / Flash)</option>
+                    <option value="gemini" <?php selected( $ai_settings['provider'], 'gemini' ); ?>>Google Gemini (Gemini 2.0 Flash / 1.5 Flash)</option>
+                    <option value="deepseek" <?php selected( $ai_settings['provider'], 'deepseek' ); ?>>DeepSeek (V3 / R1)</option>
                 </select>
             </div>
 
-            <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">OpenAI API Key</label>
-                <input type="password" name="openai_key" class="widefat" value="<?php echo esc_attr( $ai_settings['openai_key'] ); ?>" placeholder="sk-proj-..." style="border-radius:6px; padding:8px 10px;">
+            <!-- OpenAI Ayarları -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <div style="font-weight:700; font-size:12.5px; color:#0f172a; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>OpenAI Yapılandırması</span>
+                    <span class="hao-badge hao-badge-indigo">GPT-4o Mini (Flash)</span>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">OpenAI API Key</label>
+                    <input type="password" name="openai_key" class="widefat" value="<?php echo esc_attr( $ai_settings['openai_key'] ); ?>" placeholder="sk-proj-..." style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">Model</label>
+                    <select name="openai_model" style="width:100%; border-radius:6px; padding:6px 8px; border:1px solid #cbd5e1; font-size:12px;">
+                        <option value="gpt-4o-mini" <?php selected( $ai_settings['openai_model'] ?? 'gpt-4o-mini', 'gpt-4o-mini' ); ?>>gpt-4o-mini (Önerilen Hızlı & Ekonomik / Flash)</option>
+                        <option value="gpt-4o" <?php selected( $ai_settings['openai_model'] ?? '', 'gpt-4o' ); ?>>gpt-4o (Tam Model)</option>
+                        <option value="o3-mini" <?php selected( $ai_settings['openai_model'] ?? '', 'o3-mini' ); ?>>o3-mini (Reasoning)</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">DeepSeek API Key</label>
-                <input type="password" name="deepseek_key" class="widefat" value="<?php echo esc_attr( $ai_settings['deepseek_key'] ); ?>" placeholder="sk-..." style="border-radius:6px; padding:8px 10px;">
+            <!-- Gemini Ayarları -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <div style="font-weight:700; font-size:12.5px; color:#0f172a; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Google Gemini Yapılandırması</span>
+                    <span class="hao-badge hao-badge-emerald">Gemini Flash</span>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">Gemini API Key</label>
+                    <input type="password" name="gemini_key" class="widefat" value="<?php echo esc_attr( $ai_settings['gemini_key'] ); ?>" placeholder="AIzaSy..." style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">Model</label>
+                    <select name="gemini_model" style="width:100%; border-radius:6px; padding:6px 8px; border:1px solid #cbd5e1; font-size:12px;">
+                        <option value="gemini-2.0-flash" <?php selected( $ai_settings['gemini_model'] ?? 'gemini-2.0-flash', 'gemini-2.0-flash' ); ?>>gemini-2.0-flash (En Hızlı Yeni Flash)</option>
+                        <option value="gemini-1.5-flash" <?php selected( $ai_settings['gemini_model'] ?? '', 'gemini-1.5-flash' ); ?>>gemini-1.5-flash (Standart Flash)</option>
+                        <option value="gemini-1.5-pro" <?php selected( $ai_settings['gemini_model'] ?? '', 'gemini-1.5-pro' ); ?>>gemini-1.5-pro (Gelişmiş)</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="margin-bottom:14px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:#475569; margin-bottom:4px; text-transform:uppercase;">Gemini API Key</label>
-                <input type="password" name="gemini_key" class="widefat" value="<?php echo esc_attr( $ai_settings['gemini_key'] ); ?>" placeholder="AIzaSy..." style="border-radius:6px; padding:8px 10px;">
+            <!-- DeepSeek Ayarları -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:16px;">
+                <div style="font-weight:700; font-size:12.5px; color:#0f172a; margin-bottom:8px;">
+                    <span>DeepSeek Yapılandırması</span>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">DeepSeek API Key</label>
+                    <input type="password" name="deepseek_key" class="widefat" value="<?php echo esc_attr( $ai_settings['deepseek_key'] ); ?>" placeholder="sk-..." style="border-radius:6px; padding:6px 8px; font-size:12px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:2px;">Model</label>
+                    <select name="deepseek_model" style="width:100%; border-radius:6px; padding:6px 8px; border:1px solid #cbd5e1; font-size:12px;">
+                        <option value="deepseek-chat" <?php selected( $ai_settings['deepseek_model'] ?? 'deepseek-chat', 'deepseek-chat' ); ?>>deepseek-chat (DeepSeek-V3)</option>
+                        <option value="deepseek-reasoner" <?php selected( $ai_settings['deepseek_model'] ?? '', 'deepseek-reasoner' ); ?>>deepseek-reasoner (DeepSeek-R1)</option>
+                    </select>
+                </div>
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center;">
