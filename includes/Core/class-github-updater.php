@@ -13,6 +13,7 @@ class GithubUpdater {
     public function init() {
         add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_update' ] );
         add_filter( 'plugins_api', [ $this, 'plugin_popup' ], 20, 3 );
+        add_action( 'admin_post_hao_update_from_github', [ $this, 'handle_form_update' ] );
     }
 
     public function get_settings(): array {
@@ -31,6 +32,24 @@ class GithubUpdater {
             'token'  => sanitize_text_field( $data['token'] ?? '' ),
         ];
         return update_option( self::OPTION_KEY, $clean );
+    }
+
+    /**
+     * Standart Form POST ile Güncelleme Yakalayıcı
+     */
+    public function handle_form_update() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( 'Yetkisiz işlem.', 403 );
+        }
+        check_admin_referer( 'hao_github_update_action', 'hao_nonce' );
+
+        $result = $this->perform_update();
+        if ( ! empty( $result['success'] ) ) {
+            wp_safe_redirect( admin_url( 'admin.php?page=hao-settings&hao_updated=1' ) );
+        } else {
+            wp_die( 'Güncelleme Hatası: ' . esc_html( $result['message'] ?? 'Bilinmeyen hata' ) );
+        }
+        exit;
     }
 
     /**
@@ -98,7 +117,7 @@ class GithubUpdater {
             $args['headers']['Authorization'] = 'token ' . $s['token'];
         }
 
-        // 1. Zip İndir
+        // 1. Zip İndir (wp_tempnam ve download_url)
         $tmp_zip = download_url( $zip_url, 60, false );
         if ( is_wp_error( $tmp_zip ) ) {
             return [ 'success' => false, 'message' => 'Zip indirilemedi: ' . $tmp_zip->get_error_message() ];
@@ -114,48 +133,45 @@ class GithubUpdater {
         }
 
         // 3. Geçici Klasöre Aç
-        $upgrade_dir = $wp_filesystem->wp_content_dir() . 'upgrade/';
-        if ( ! $wp_filesystem->is_dir( $upgrade_dir ) ) {
-            $wp_filesystem->mkdir( $upgrade_dir );
-        }
-
-        $temp_extract = $upgrade_dir . 'hao_update_' . time() . '/';
-        $unzip_res    = unzip_file( $tmp_zip, $temp_extract );
+        $plugin_base  = dirname( HAO_DIR );
+        $temp_extract = $plugin_base . '/hao_temp_update_' . time() . '/';
+        
+        $unzip_res = unzip_file( $tmp_zip, $temp_extract );
         @unlink( $tmp_zip );
 
         if ( is_wp_error( $unzip_res ) ) {
-            $wp_filesystem->delete( $temp_extract, true );
             return [ 'success' => false, 'message' => 'Zip açılamadı: ' . $unzip_res->get_error_message() ];
         }
 
         // 4. İç Klasörü Bul (örn: hesaplamaa-all-in-one-main)
-        $files = $wp_filesystem->dirlist( $temp_extract );
-        if ( empty( $files ) ) {
-            $wp_filesystem->delete( $temp_extract, true );
-            return [ 'success' => false, 'message' => 'Açılan zip dosyası boş.' ];
-        }
-
+        $files = scandir( $temp_extract );
         $source_dir = '';
-        foreach ( $files as $name => $info ) {
-            if ( $info['type'] === 'd' ) {
-                $source_dir = $temp_extract . $name . '/';
+        foreach ( $files as $file ) {
+            if ( $file !== '.' && $file !== '..' && is_dir( $temp_extract . $file ) ) {
+                $source_dir = $temp_extract . $file . '/';
                 break;
             }
         }
 
-        if ( empty( $source_dir ) || ! $wp_filesystem->is_dir( $source_dir ) ) {
+        if ( empty( $source_dir ) || ! is_dir( $source_dir ) ) {
             $source_dir = $temp_extract;
         }
 
         // 5. Eklenti Klasörüne Kopyala
         $dest_dir = HAO_DIR;
-        $copy_res = copy_dir( $source_dir, $dest_dir );
+        $copied   = copy_dir( $source_dir, $dest_dir );
+
+        // Fallback: copy_dir hata verirse yerel recursive kopyalama
+        if ( is_wp_error( $copied ) ) {
+            $copied = $this->native_recursive_copy( $source_dir, $dest_dir );
+        }
 
         // Geçici klasörü temizle
-        $wp_filesystem->delete( $temp_extract, true );
+        $this->delete_dir_recursive( $temp_extract );
 
-        if ( is_wp_error( $copy_res ) ) {
-            return [ 'success' => false, 'message' => 'Dosyalar kopyalanamadı: ' . $copy_res->get_error_message() ];
+        if ( is_wp_error( $copied ) || false === $copied ) {
+            $err_msg = is_wp_error( $copied ) ? $copied->get_error_message() : 'Dosyalar hedef klasöre yazılamadı (Yazma izni kontrolü yapınız).';
+            return [ 'success' => false, 'message' => 'Dosyalar kopyalanamadı: ' . $err_msg ];
         }
 
         // 6. SHA ve Versiyon Kaydet
@@ -166,11 +182,49 @@ class GithubUpdater {
         }
         update_option( 'hao_last_update_time', current_time( 'mysql' ) );
 
+        // Cache temizle
+        if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+            wp_clean_plugins_cache( true );
+        }
+        if ( function_exists( 'wp_cache_flush' ) ) {
+            wp_cache_flush();
+        }
+        if ( function_exists( 'opcache_reset' ) ) {
+            @opcache_reset();
+        }
+
         return [
             'success' => true,
             'sha'     => $sha,
-            'message' => 'Hesaplamaa All-in-One GitHub üzerinden başarıyla en son sürüme güncellendi!',
+            'message' => 'Hesaplamaa All-in-One GitHub üzerinden başarıyla güncellendi!',
         ];
+    }
+
+    private function native_recursive_copy( string $src, string $dst ): bool {
+        $dir = opendir( $src );
+        if ( ! $dir ) return false;
+        @mkdir( $dst, 0755, true );
+
+        while ( false !== ( $file = readdir( $dir ) ) ) {
+            if ( ( $file != '.' ) && ( $file != '..' ) ) {
+                if ( is_dir( $src . '/' . $file ) ) {
+                    $this->native_recursive_copy( $src . '/' . $file, $dst . '/' . $file );
+                } else {
+                    @copy( $src . '/' . $file, $dst . '/' . $file );
+                }
+            }
+        }
+        closedir( $dir );
+        return true;
+    }
+
+    private function delete_dir_recursive( string $dir ): bool {
+        if ( ! is_dir( $dir ) ) return false;
+        $files = array_diff( scandir( $dir ), [ '.', '..' ] );
+        foreach ( $files as $file ) {
+            ( is_dir( "$dir/$file" ) ) ? $this->delete_dir_recursive( "$dir/$file" ) : @unlink( "$dir/$file" );
+        }
+        return @rmdir( $dir );
     }
 
     public function check_update( $transient ) {
