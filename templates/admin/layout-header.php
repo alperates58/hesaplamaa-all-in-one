@@ -25,6 +25,15 @@ $is_connected = $gsc_client->is_connected();
         </div>
 
         <div class="hao-header-actions">
+            <!-- GitHub'dan Tek Tıkla Güncelle Butonu -->
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline; margin:0;">
+                <input type="hidden" name="action" value="hao_update_from_github">
+                <?php wp_nonce_field( 'hao_github_update_action', 'hao_nonce' ); ?>
+                <button type="submit" class="hao-btn hao-btn-secondary" title="GitHub'dan en son sürümü indir ve kur" onclick="return confirm('GitHub üzerinden en son sürüme güncellenecek. Devam edilsin mi?');">
+                    <span class="dashicons dashicons-update"></span> GitHub'dan Güncelle
+                </button>
+            </form>
+
             <?php if ( $is_connected ) : ?>
                 <span class="hao-badge hao-badge-emerald">
                     <span class="dashicons dashicons-yes-alt" style="font-size:14px; width:14px; height:14px; line-height:14px;"></span> GSC Bağlı
@@ -34,7 +43,7 @@ $is_connected = $gsc_client->is_connected();
                 </button>
             <?php else : ?>
                 <span class="hao-badge hao-badge-amber">GSC Bağlı Değil</span>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=hao-settings' ) ); ?>" class="hao-btn hao-btn-secondary">
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=hao-settings' ) ); ?>" class="hao-btn hao-btn-primary">
                     Bağlantı Kur
                 </a>
             <?php endif; ?>
